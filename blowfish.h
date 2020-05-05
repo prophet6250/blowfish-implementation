@@ -13,12 +13,12 @@ uint32_t
 gen_subkey(uint32_t arg);
 
 void 
-blowfish_encrypt(uint32_t &left, uint32_t &right);
+blowfish_encrypt(uint32_t *left, uint32_t *right);
 
 void
-blowfish_decrypt(uint32_t &left, uint32_t &right);
+blowfish_decrypt(uint32_t *left, uint32_t *right);
 
 void
-blowfish_main(uint8_t &key[]);
+blowfish_initialize(uint8_t *key, uint8_t keysize);
 
 #endif
