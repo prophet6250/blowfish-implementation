@@ -43,38 +43,56 @@ blowfish_decrypt(uint32_t *left, uint32_t *right)
 	SWAP(*left, *right);
 }
 
-void
-blowfish_initialize(uint8_t *key, uint8_t keysize)
+uint8_t *
+blowfish_initialize(uint8_t data_array[], uint8_t key[])
 {
-	int keylen = strlen(key), i, j;
+	int datasize = strlen(data_array), keysize = strlen(key), i, j, factor;
+	int enc_index = 0;
+	uint64_t data_chunk = 0x00000000;
 	uint32_t left = 0, right = 0;
+	uint8_t *encrypted_data = malloc(sizeof *encrypted_data * datasize);
 
 	/* subkey generation */
 	for (i = 0; i < 18; i++) {
-		pbox[i] ^= key[i % keylen] | key[(i + 1) % keylen] | 
-		           key[(i + 2) % keylen] | key[(i + 3) % keylen];
+		pbox[i] ^= key[i % keysize] | key[(i + 1) % keysize] | 
+		           key[(i + 2) % keysize] | key[(i + 3) % keysize];
 	}
 
-	/* TODO:
-	 * 1. break the data into two 32 bit chunks
-	 * 2. encrypt these two chunks
-	 * 3. append to the answer as a single 64 bit chunk again
-	 * 4. process next 64 bit block, repeat 1.
-	 */
+	for (i = 0; i < datasize; i += 8) {
+		factor = 7;
+		for (j = i; (j < (i + 7)) && (j < datasize); j++, factor--) {
+			data_chunk |= data_array[j] << (8 * factor);
+		}
+		data_chunk |= data_array[i + 7];
 
-	/* encrypt left and right using pbox */
-	for (i = 0; i < 18; i += 2) {
-		blowfish_encrypt(&left, &right);
-		pbox[i]     = left;
-		pbox[i + 1] = right;
-	}
+		left  = (uint32_t)(data_chunk);
+		right = (uint32_t)(data_chunk >> 32);
 
-	/* further encrypt left and right using sbox */
-	for (i = 0; i < 5; i++) {
-		for (j = 0; j < 256; j += 2) {
+		/* encrypt left and right using pbox */
+		for (i = 0; i < 18; i += 2) {
 			blowfish_encrypt(&left, &right);
-			sbox[i][j]     = left;
-			sbox[i][j + 1] = right;
+			pbox[i]     = left;
+			pbox[i + 1] = right;
+		}
+
+		/* further encrypt left and right using sbox */
+		for (i = 0; i < 5; i++) {
+			for (j = 0; j < 256; j += 2) {
+				blowfish_encrypt(&left, &right);
+				sbox[i][j]     = left;
+				sbox[i][j + 1] = right;
+			}
+		}
+
+		/* combining the tow halves again */
+		data_chunk = (uint64_t)right << 32 | left;
+
+		factor = 7;
+		for (i = 0; i < 8; i++, enc_index++) {
+			encrypted_data[enc_index] = 
+			                (uint8_t)(data_chunk >> (8 * factor));
 		}
 	}
+
+	return encrypted_data;
 }
