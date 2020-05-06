@@ -53,7 +53,7 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[])
 	uint32_t left = 0, right = 0;
 	uint8_t *encrypted = malloc(sizeof *encrypted * datasize);
 
-	/* subkey generation (DONE) */
+	/* subkey generation */
 	for (i = 0; i < 18; i++) {
 		pbox[i] ^= ((uint32_t)key[(i + 0) % keysize] << 24) | 
 		           ((uint32_t)key[(i + 1) % keysize] << 16) | 
@@ -62,8 +62,9 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[])
 	}
 
 	for (k = 0; k < datasize; k += 8) {
+
+		/* chunkify */
 		factor = 7;
-		/* chunkify (DONE) */
 		for (j = k; (j < (k + 7)) && (factor > 0); j++, factor--) {
 			data_chunk |= data_array[j] << (8 * factor);
 		}
@@ -72,14 +73,13 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[])
 		left   = (uint32_t)(data_chunk >> 32);
 		right  = (uint32_t)(data_chunk);
 
-		/* first round (SEGFAULT) */
+		/* main encryption engine */
 		for (i = 0; i <= 16; i += 2) {
 			blowfish_encrypt(&left, &right);
 			pbox[i]     = left;
 			pbox[i + 1] = right;
 		}
 
-		/* second round (CUR) */
 		for (i = 0; i <= 3; i++) {
 			for (j = 0; j <= 254; j += 2) {
 				blowfish_encrypt(&left, &right);
@@ -88,10 +88,10 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[])
 			}
 		}
 		
-		/* combining the tow halves again (CUR) */
+		/* combining the tow halves again */
 		data_chunk = ((uint64_t)left << 32) | right;
 
-		/* converting 64-bit chunk into string format again (CUR) */
+		/* converting 64-bit chunk into string format again */
 		factor = 7, index = k;
 		while (index < datasize - 1 && factor >= 1) {
 			encrypted[index] = (uint8_t)(data_chunk >> (8*factor));
@@ -100,6 +100,7 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[])
 			index  += 1;
 		}
 		encrypted[index] = (uint8_t)data_chunk;
+
 		index += 1;
 	}
 

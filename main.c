@@ -9,22 +9,23 @@
 int main(int argc, char const *argv[])
 {
 	int i;
-	uint8_t data[DATASIZE] = "this is a string", key[KEYSIZE] = "key", *encrypted;
+	uint8_t data[DATASIZE], key[KEYSIZE], *encrypted;
 	
 	printf("enter the data (max length 1024 characters)\n");
-	scanf("%x", &data);
+	fgets(data, DATASIZE, stdin);
 
 	printf("enter key (max length = 56 characters)\n");
-	// fgets(key, KEYSIZE, stdin);
+	fgets(key, KEYSIZE, stdin);
+	
 	for (i = 0; i < strlen(data); i++) {
-		printf("%x ", data[i]);
+		printf("%.2x ", data[i]);
 	}
 	printf("\n");
 	encrypted = blowfish_initialize(data, key);
 
 	printf("encrypted data is:\n");
 	for (i = 0; i < strlen(data); i++) {
-		printf("%x ", encrypted[i]);
+		printf("%.2x ", encrypted[i]);
 	}
 
 	printf("\n");

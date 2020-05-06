@@ -10,7 +10,7 @@ typedef unsigned int       uint32_t;
 typedef unsigned long long uint64_t;
 
 uint32_t 
-gen_subkey(uint32_t arg);
+feistel_function(uint32_t arg);
 
 void 
 blowfish_encrypt(uint32_t *left, uint32_t *right);
