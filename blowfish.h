@@ -19,6 +19,6 @@ void
 blowfish_decrypt(uint32_t *left, uint32_t *right);
 
 uint8_t *
-blowfish_initialize(uint8_t data_array[], uint8_t key[]);
+blowfish_initialize(uint8_t data_array[], uint8_t key[], uint8_t op_mode);
 
 #endif

@@ -31,7 +31,7 @@ void
 blowfish_decrypt(uint32_t *left, uint32_t *right)
 {
 	int i;
-	for (i = 16; i > 0; i -= 2) {
+	for (i = 16; i > 1; i -= 2) {
 		*left  ^= pbox[i + 1];
 		*right ^= feistel_function(*left);
 		*right ^= pbox[i];
@@ -44,7 +44,7 @@ blowfish_decrypt(uint32_t *left, uint32_t *right)
 }
 
 uint8_t *
-blowfish_initialize(uint8_t data_array[], uint8_t key[])
+blowfish_initialize(uint8_t data_array[], uint8_t key[], uint8_t op_mode)
 {
 	int datasize = strlen(data_array), keysize = strlen(key), i, j, k, 
 	    factor;
@@ -75,14 +75,22 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[])
 
 		/* main encryption engine */
 		for (i = 0; i <= 16; i += 2) {
-			blowfish_encrypt(&left, &right);
+			if (op_mode == 1)
+				blowfish_encrypt(&left, &right);
+			else
+				blowfish_decrypt(&left, &right);
+			
 			pbox[i]     = left;
 			pbox[i + 1] = right;
 		}
 
 		for (i = 0; i <= 3; i++) {
 			for (j = 0; j <= 254; j += 2) {
-				blowfish_encrypt(&left, &right);
+				if (op_mode == 1)
+					blowfish_encrypt(&left, &right);
+				else
+					blowfish_decrypt(&left, &right);
+
 				sbox[i][j]     = left;
 				sbox[i][j + 1] = right;
 			}

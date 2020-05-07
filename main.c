@@ -5,52 +5,139 @@
 
 #define KEYSIZE  56
 #define DATASIZE 1024
-#define DATAFILE "data.txt"
-#define KEYFILE  "key.txt"
-#define ENC_FILE "data.eNCrYpT"
+
+void
+print_error()
+{
+	printf("Usage: bfsh [Options] FileName\n"
+	       "Options:\n  -e\tencrypt mode->enter src file name and encrypted"
+	       " file name after this flag\n  -d\tdecrypt mode->enter decrypted"
+	       " file name and data file name after this flag\n  -k\tkey" 
+	       " file->enter the filename containing the keys"
+	       " after this flag\n  -h\tprint this help message\n");
+	printf("\nSample usage: ./bfsh -e source.txt source.encrypt -k key.txt"
+	       "\n");
+}
 
 int main(int argc, char const *argv[])
 {
-	int i;
-	uint8_t data[DATASIZE], key[KEYSIZE], character, *encrypted;
-	//uint8_t *decrypted;
+	int i, j;
+	uint8_t data[DATASIZE], key[KEYSIZE];
+	uint8_t character, op_mode = 0;
+	uint8_t *crypt_data;
+	FILE *dataF, *keyF, *cryptF;
+	
+	j = 1;
+	/* parsing the command line flags */
+	while (j < argc) {
+		/* encryption mode */
+		if (!strncmp(argv[j], "-e", 2)) 
+		{
+			if (!(dataF = fopen(argv[j + 1], "r+"))) {
+				printf("file not found!\nmake sure the file"
+				       " exists in the program's root directory"
+				       "\n");
+				return 1;
+			}
+			printf("data file for encryption read\n");
+			
+			cryptF = fopen(argv[j + 2], "w+");
+			printf("crypt file created for encryption\n");
 
-	FILE *dataF = fopen(DATAFILE, "r+");
-	FILE *keyF  = fopen(KEYFILE, "r");
-	FILE *encF  = fopen(ENC_FILE, "w+");
+			/* reading from the data file */
+			i = 0;
+			while (!feof(dataF)) {
+				character = fgetc(dataF);
 
-	/* reading from the data file */
+				printf("%x", character);
+				data[i] = character;
+				i += 1;
+			}
+			
+			clearerr(dataF);
+			printf("\nreading from the datafile done\n");
+			/* operation mode 0 means encryption mode */
+			op_mode = 0;
+
+			j += 3;
+		}
+		/* decryption mode */
+		else if (!strncmp(argv[j], "-d", 2)) {
+			if (!(dataF = fopen(argv[j + 1], "r+"))) {
+				printf("file not found!\nmake sure the file"
+				       " exists in the program's root directory"
+				       "\n");
+				return 1;
+			}
+			printf("data file for decryption read\n");
+
+			
+			cryptF = fopen(argv[j + 2], "w+");
+
+			/* reading from the data file */
+			i = 0;
+			while (!feof(dataF)) {
+				character = fgetc(dataF);
+
+				printf("%x", character);
+				data[i] = character;
+				i += 1;
+			}
+			
+			clearerr(dataF);
+			printf("\nreading from the datafile done\n");
+			/* operation mode 1 means decryption mode */
+			op_mode = 1;
+
+			j += 3;
+		}
+		/* key file source */
+		else if (!strncmp(argv[j], "-k", 2)) {
+			if (!(keyF = fopen(argv[j + 1], "r"))) {
+				printf("file not found!\nmake sure the file"
+				       " exists in the program's root directory"
+				       "\n");
+				return 1;
+			}
+			printf("key file read\n");
+
+			
+			/* reading from the key file */
+			i = 0;
+			while (!feof(keyF)) {
+				character = fgetc(keyF);
+				
+				printf("%x", character);
+				key[i] = character;
+				i += 1;
+			}
+			
+			clearerr(keyF);
+			printf("\nreading from the keyfile done\n");
+
+			j += 2;
+		}
+		/* wrong choice, dude */
+		else {
+			print_error();
+			return 1;
+		}
+	}
+
+	crypt_data = blowfish_initialize(data, key, op_mode);
+	fputs(crypt_data, cryptF);
+	printf("\nwriting to the encrypted file done\n");
 	i = 0;
-	while (!feof(dataF)) {
-		character = fgetc(dataF);
-
-		printf("%c", character);
-		data[i] = character;
+	while (i < strlen(data)) {
+		printf("%x", crypt_data[i]);
 		i += 1;
 	}
-	clearerr(dataF);
-	printf("reading from the datafile done\n");
-
-	/* reading from the key file */
-	i = 0;
-	while (!feof(keyF)) {
-		character = fgetc(keyF);
-		
-		printf("%c", character);
-		key[i] = character;
-		i += 1;
-	}
-	clearerr(keyF);
-	printf("reading from the keyfile done\n");
-
-	encrypted = blowfish_initialize(data, key);
-	fputs(encrypted, encF);
-	printf("writing to the encrypted file done\n");
-	clearerr(encF);
+	printf("\n");
+	clearerr(cryptF);
 
 	fclose(dataF);
 	fclose(keyF);
-	fclose(encF);
+	fclose(cryptF);
 
 	return 0;
 }
