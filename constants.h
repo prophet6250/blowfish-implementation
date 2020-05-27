@@ -1,7 +1,6 @@
 #ifndef __CONSTANTS__
 #define __CONSTANTS__
 
-#include "blowfish.h"
 /* initialized from the hex digits of pi 
  * these arrays can be verified from the original source
  * https://www.schneier.com/code/constants.txt 

@@ -1,11 +1,11 @@
 #ifndef __BLOWFISH__
 #define __BLOWFISH__
 
-/* utility macros */
-#define SWAP(x, y) (x) += (y); (y) = (x) - (y); (x) -= (y);
+/* integer overflow isn't an issue here */
+#define SWAP(x, y, temp) {temp = (x); (x) = (y); (y) = temp;}
 
+/* shorthand typedefs. a full  header file for such a thing is an overkill */
 typedef unsigned char      uint8_t;
-typedef unsigned short     uint16_t;
 typedef unsigned int       uint32_t;
 typedef unsigned long long uint64_t;
 
@@ -13,12 +13,18 @@ uint32_t
 feistel_function(uint32_t arg);
 
 void 
-blowfish_encrypt(uint32_t *left, uint32_t *right);
+_encrypt(uint32_t *left, uint32_t *right);
 
 void
-blowfish_decrypt(uint32_t *left, uint32_t *right);
+_decrypt(uint32_t *left, uint32_t *right);
+
+void
+blowfish_init(uint8_t key[]);
 
 uint8_t *
-blowfish_initialize(uint8_t data_array[], uint8_t key[], uint8_t op_mode);
+blowfish_encrypt(uint8_t data[]);
+
+uint8_t *
+blowfish_decrypt(uint8_t crypt_data[]);
 
 #endif

@@ -4,12 +4,13 @@
 #include "blowfish.h"
 
 #define KEYSIZE  56
-#define DATASIZE 1024
+#define DATASIZE 4096
 
+/* hep message */
 void
 print_error()
 {
-	printf("Usage: bfsh [Options] FileName\n"
+	printf("Usage: bfsh [Options] FileName(s)\n"
 	       "Options:\n  -e\tencrypt mode->enter src file name and encrypted"
 	       " file name after this flag\n  -d\tdecrypt mode->enter decrypted"
 	       " file name and data file name after this flag\n  -k\tkey" 
@@ -27,22 +28,28 @@ int main(int argc, char const *argv[])
 	uint8_t *crypt_data;
 	FILE *dataF, *keyF, *cryptF;
 	
+	if (!strncmp(argv[1], "-h", 2)) {
+		print_error();
+		return 1;
+	}
+	
+	if (argc < 6) {
+		printf("ERROR : INSUFFICIENT ARGUMENTS SUPPLIED!\n\n");
+		print_error();
+		return 1;
+	}
+
 	j = 1;
-	/* parsing the command line flags */
 	while (j < argc) {
-		/* encryption mode */
-		if (!strncmp(argv[j], "-e", 2)) 
-		{
-			if (!(dataF = fopen(argv[j + 1], "r+"))) {
+		if (!strncmp(argv[j], "-e", 2)) {
+			if (!(dataF = fopen(argv[j + 1], "rb+"))) {
 				printf("file not found!\nmake sure the file"
 				       " exists in the program's root directory"
 				       "\n");
 				return 1;
 			}
-			printf("data file for encryption read\n");
 			
-			cryptF = fopen(argv[j + 2], "w+");
-			printf("crypt file created for encryption\n");
+			cryptF = fopen(argv[j + 2], "wb+");
 
 			/* reading from the data file */
 			i = 0;
@@ -54,25 +61,21 @@ int main(int argc, char const *argv[])
 				i += 1;
 			}
 			
-			clearerr(dataF);
 			printf("\nreading from the datafile done\n");
 			/* operation mode 0 means encryption mode */
 			op_mode = 0;
 
 			j += 3;
 		}
-		/* decryption mode */
 		else if (!strncmp(argv[j], "-d", 2)) {
-			if (!(dataF = fopen(argv[j + 1], "r+"))) {
+			if (!(dataF = fopen(argv[j + 1], "rb+"))) {
 				printf("file not found!\nmake sure the file"
 				       " exists in the program's root directory"
 				       "\n");
 				return 1;
 			}
-			printf("data file for decryption read\n");
-
 			
-			cryptF = fopen(argv[j + 2], "w+");
+			cryptF = fopen(argv[j + 2], "wb+");
 
 			/* reading from the data file */
 			i = 0;
@@ -84,14 +87,12 @@ int main(int argc, char const *argv[])
 				i += 1;
 			}
 			
-			clearerr(dataF);
 			printf("\nreading from the datafile done\n");
 			/* operation mode 1 means decryption mode */
 			op_mode = 1;
 
 			j += 3;
 		}
-		/* key file source */
 		else if (!strncmp(argv[j], "-k", 2)) {
 			if (!(keyF = fopen(argv[j + 1], "r"))) {
 				printf("file not found!\nmake sure the file"
@@ -99,8 +100,6 @@ int main(int argc, char const *argv[])
 				       "\n");
 				return 1;
 			}
-			printf("key file read\n");
-
 			
 			/* reading from the key file */
 			i = 0;
@@ -112,28 +111,40 @@ int main(int argc, char const *argv[])
 				i += 1;
 			}
 			
-			clearerr(keyF);
 			printf("\nreading from the keyfile done\n");
+			
+			/* initialize with the key first */
+			blowfish_init(key);
 
 			j += 2;
 		}
-		/* wrong choice, dude */
 		else {
+			printf("ERROR : INVALID FLAG ENTERED!\n\n");
 			print_error();
 			return 1;
 		}
 	}
 
-	crypt_data = blowfish_initialize(data, key, op_mode);
+	
+	
+	/* then run the encryption or decryption */
+	if (op_mode) {
+		crypt_data = blowfish_decrypt(data);
+	}
+	else {
+		crypt_data = blowfish_encrypt(data);
+	}
+
 	fputs(crypt_data, cryptF);
-	printf("\nwriting to the encrypted file done\n");
+	printf("\nwriting to the crypt file done\n");
+	
+	/* printing the crypt data for verification */
 	i = 0;
 	while (i < strlen(data)) {
 		printf("%x", crypt_data[i]);
 		i += 1;
 	}
 	printf("\n");
-	clearerr(cryptF);
 
 	fclose(dataF);
 	fclose(keyF);

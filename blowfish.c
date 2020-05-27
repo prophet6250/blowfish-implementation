@@ -13,45 +13,46 @@ feistel_function(uint32_t arg)
 }
 
 void 
-blowfish_encrypt(uint32_t *left, uint32_t *right)
+_encrypt(uint32_t *left, uint32_t *right)
 {
-	int i;
-	for (i = 0; i <= 16; i += 2) {
+	int i, t;
+	for (i = 0; i < 16; i++) {
+		/* check the value of each iteration and then compare the values
+		 * with manual caluclations */
 		*left  ^= pbox[i];
 		*right ^= feistel_function(*left);
-		*right ^= pbox[i + 1];
-		*left  ^= feistel_function(*right);
+		
+		SWAP(*left, *right, t);
 	}
-	*left  ^= pbox[16];
-	*right ^= pbox[17];
-	SWAP(*left, *right);
+
+	SWAP(*left, *right, t); i += 1;
+	
+	*right  ^= pbox[16];
+	*left ^= pbox[17];
 }
 
 void
-blowfish_decrypt(uint32_t *left, uint32_t *right)
+_decrypt(uint32_t *left, uint32_t *right)
 {
-	int i;
-	for (i = 16; i > 1; i -= 2) {
-		*left  ^= pbox[i + 1];
+	int i, t;
+	for (i = 17; i > 1; i--) {
+		*left  ^= pbox[i];
 		*right ^= feistel_function(*left);
-		*right ^= pbox[i];
-		*left  ^= feistel_function(*right);
+
+		SWAP(*left, *right, t);
 	}
 
-	*left  ^=  pbox[1];
-	*right ^= pbox[0];
-	SWAP(*left, *right);
+	SWAP(*left, *right, t);
+	*right ^=  pbox[1];
+	*left  ^= pbox[0];
 }
 
-uint8_t *
-blowfish_initialize(uint8_t data_array[], uint8_t key[], uint8_t op_mode)
+void
+blowfish_init(uint8_t key[])
 {
-	int datasize = strlen(data_array), keysize = strlen(key), i, j, k, 
-	    factor;
+	int keysize = strlen(key), i, j, k, factor;
 	int index = 0;
-	uint64_t data_chunk = 0x0000000000000000;
 	uint32_t left = 0, right = 0;
-	uint8_t *encrypted = malloc(sizeof *encrypted * datasize);
 
 	/* subkey generation */
 	for (i = 0; i < 18; i++) {
@@ -61,57 +62,135 @@ blowfish_initialize(uint8_t data_array[], uint8_t key[], uint8_t op_mode)
 		           ((uint32_t)key[(i + 3) % keysize]);
 	}
 
-	for (k = 0; k < datasize; k += 8) {
-
-		/* chunkify */
-		factor = 7;
-		for (j = k; (j < (k + 7)) && (factor > 0); j++, factor--) {
-			data_chunk |= data_array[j] << (8 * factor);
-		}
-		data_chunk |= data_array[k + 7];
-
-		left   = (uint32_t)(data_chunk >> 32);
-		right  = (uint32_t)(data_chunk);
-
-		/* main encryption engine */
-		for (i = 0; i <= 16; i += 2) {
-			if (op_mode == 1)
-				blowfish_encrypt(&left, &right);
-			else
-				blowfish_decrypt(&left, &right);
-			
-			pbox[i]     = left;
-			pbox[i + 1] = right;
-		}
-
-		for (i = 0; i <= 3; i++) {
-			for (j = 0; j <= 254; j += 2) {
-				if (op_mode == 1)
-					blowfish_encrypt(&left, &right);
-				else
-					blowfish_decrypt(&left, &right);
-
-				sbox[i][j]     = left;
-				sbox[i][j + 1] = right;
-			}
-		}
+	/* encrypt the zeroes, modifying the p-array and s-boxes accordingly */
+	for (i = 0; i <= 17; i += 2) {
+		_encrypt(&left, &right);
 		
-		/* combining the tow halves again */
-		data_chunk = ((uint64_t)left << 32) | right;
-
-		/* converting 64-bit chunk into string format again */
-		factor = 7, index = k;
-		while (index < datasize - 1 && factor >= 1) {
-			encrypted[index] = (uint8_t)(data_chunk >> (8*factor));
-			
-			factor -= 1;
-			index  += 1;
-		}
-		encrypted[index] = (uint8_t)data_chunk;
-
-		index += 1;
+		pbox[i]     = left;
+		pbox[i + 1] = right;
 	}
 
+	for (i = 0; i <= 3; i++) {
+		for (j = 0; j <= 254; j += 2) {
+			_encrypt(&left, &right);
+			
+			sbox[i][j]     = left;
+			sbox[i][j + 1] = right;
+		}
+	}
+	return;
+}
+
+uint8_t *
+blowfish_encrypt(uint8_t data[])
+{
+	int i, j, index = 0;
+	uint32_t left = 0, right = 0, datasize = strlen(data), factor;
+	uint64_t chunk = 0;
+	uint8_t *encrypted = malloc(sizeof *encrypted * datasize);
+
+	/* CHUNK-IFY! */
+	for (i = 0; i < datasize; i += 8) {
+		chunk = 0x00000000;
+		factor = 7;
+		for (j = i; (j <= (i + 6)) && (j < datasize); j++, factor--) {
+			chunk |= (uint64_t)(data[j] << (8 * factor));
+		}
+		if (factor == 0) {
+			chunk |= data[i + 7];
+		}
+
+		printf("chunk before encryption: %X\n", chunk);
+		left   = (chunk >> 32);
+		right  = (uint32_t)(chunk);
+
+		printf("left right before enc = %X, %X\n", left, right);
+		/* main encryption engine */
+		_encrypt(&left, &right);
+		printf("left right after enc = %X, %X\n", left, right);
+
+		/* merge the two halves again, into a single 64 bit chunk */
+		chunk = 0;
+		chunk |= (uint64_t)left << 32;
+		chunk |= right;
+		// chunk = ((uint64_t)(left) << 32) | right;
+		printf("chunk after encryption: %X\n", chunk);
+				
+		/* copy this chunk into the final answer */	
+		encrypted[index + 0] = (uint8_t)(chunk >> 56);
+		printf("chunk >> %d = %X\n", 8*7, (chunk >> 56) & 0xff);
+		encrypted[index + 1] = (uint8_t)(chunk >> 48);
+		printf("chunk >> %d = %X\n", 8*6, (chunk >> 48) & 0xff);
+		encrypted[index + 2] = (uint8_t)(chunk >> 40);
+		printf("chunk >> %d = %X\n", 8*5, (chunk >> 40) & 0xff);
+		encrypted[index + 3] = (uint8_t)(chunk >> 32);
+		printf("chunk >> %d = %X\n", 8*4, (chunk >> 32) & 0xff);
+		encrypted[index + 4] = (uint8_t)(chunk >> 24);
+		printf("chunk >> %d = %X\n", 8*3, (chunk >> 24) & 0xff);
+		encrypted[index + 4] = (uint8_t)(chunk >> 16);
+		printf("chunk >> %d = %X\n", 8*2, (chunk >> 16) & 0xff);
+		encrypted[index + 5] = (uint8_t)(chunk >> 8);
+		printf("chunk >> %d = %X\n", 8*1, (chunk >> 8) & 0xff);
+		encrypted[index + 7] = (uint8_t)(chunk);
+		printf("chunk >> %d = %X\n", 8*0, (chunk) & 0xff);
+
+		index += 8;
+	}
 	return encrypted;
 }
 
+uint8_t *
+blowfish_decrypt(uint8_t data[])
+{
+	int i, j, index = 0;
+	uint32_t left = 0, right = 0, datasize = strlen(data), factor;
+	uint64_t chunk = 0;
+	uint8_t *decrypted = malloc(sizeof *decrypted * datasize);
+
+	/* CHUNK-IFY! */
+	for (i = 0; i < datasize; i += 8) {
+		chunk = 0x00000000;
+		factor = 7;
+		for (j = i; (j <= (i + 6)) && (j < datasize); j++, factor--) {
+			chunk |= data[j] << (8 * factor);
+		}
+		if (j < datasize) {
+			chunk |= data[i + 7];
+		}
+
+
+		// left   = (uint32_t)(chunk >> 32);
+		left   = (chunk >> 32) & 0xffffffff;
+		right  = (chunk);
+		// right  = (uint32_t)(chunk);
+
+		printf("chunk before decryption = %X\n", chunk);
+		printf("left right before decryption = %X, %X\n", left, right);
+		_decrypt(&left, &right);
+
+		chunk = (((uint64_t)left << 32) & 0xffffffff) | right;
+		printf("left right after decryption = %X, %X\n", left, right);
+		printf("chunk before decryption = %X\n", chunk);
+				
+		/* copy this chunk into the final answer */
+		decrypted[index + 0] = (chunk >> 56) & 0xff;
+		printf("chunk >> %d = %X\n", 8*7, (chunk >> 56) & 0xff);
+		decrypted[index + 1] = (chunk >> 48) & 0xff;
+		printf("chunk >> %d = %X\n", 8*6, (chunk >> 48) & 0xff);
+		decrypted[index + 2] = (chunk >> 40) & 0xff;
+		printf("chunk >> %d = %X\n", 8*5, (chunk >> 40) & 0xff);
+		decrypted[index + 3] = (chunk >> 32) & 0xff;
+		printf("chunk >> %d = %X\n", 8*4, (chunk >> 32) & 0xff) ;
+		decrypted[index + 4] = (chunk >> 24) & 0xff;
+		printf("chunk >> %d = %X\n", 8*3, (chunk >> 24) & 0xff);
+		decrypted[index + 4] = (chunk >> 16) & 0xff;
+		printf("chunk >> %d = %X\n", 8*2, (chunk >> 16) & 0xff);
+		decrypted[index + 5] = (chunk >> 8) & 0xff;
+		printf("chunk >> %d = %X\n", 8*1, (chunk >> 8) & 0xff);
+		decrypted[index + 7] = (chunk) & 0xff; 
+		printf("chunk >> %d = %X\n", 8*0, (chunk) & 0xff);
+		
+		index += 8;
+	}
+	return decrypted;
+}
