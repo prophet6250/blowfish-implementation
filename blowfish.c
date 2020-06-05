@@ -44,9 +44,9 @@ _decrypt(uint32_t *left, uint32_t *right)
 }
 
 void
-blowfish_init(uint8_t key[], int padsize)
+blowfish_init(uint8_t key[], int size)
 {
-	int keysize = padsize, i, j;
+	int keysize = size, i, j;
 	uint32_t left = 0x00000000, right = 0x00000000;
 
 	/* subkey generation */
@@ -73,13 +73,6 @@ blowfish_init(uint8_t key[], int padsize)
 	}
 }
 
-
-/* eh bhendi! you have some major refactoring and feature additions to do: 
- * 4. have to reintegrate the runtime flags and file i/o
- *
- * 5. final refactoring and documentation
- */
-
 uint8_t *
 blowfish_encrypt(uint8_t data[], int padsize)
 {
@@ -91,27 +84,24 @@ blowfish_encrypt(uint8_t data[], int padsize)
 	
 	datasize = padsize;
 
-	/* CHUNK-IFY! */
 	for (i = 0; i < datasize; i += 8) {
-		/* copied a 8B chunk into the buffer variable */
+		/* make 8 byte chunks */
 		chunk = 0x0000000000000000;
 		memmove(&chunk, data + i, sizeof(chunk)); 
 
-		/* split into two 4B parts */
+		/* split into two 4 byte chunks */
 		left = right = 0x00000000;
 		left   = (uint32_t)(chunk >> 32);
 		right  = (uint32_t)(chunk);
 
 		_encrypt(&left, &right);
 
-		/* merge into single 8B chunk */
+		/* merge encrypted halves into a single 8 byte chunk again */
 		chunk = 0x0000000000000000;
 		chunk |= left; chunk <<= 32;
 		chunk |= right;
 		
-		/* append this chunk into the final answer */
-		/* since encrypted is a multiple of 8, we don't have to worry
-		 * about the off by N bits error */
+		/* append the chunk into the answer */
 		memmove(encrypted + i, &chunk, sizeof(chunk));
 	}
 	return encrypted;
@@ -128,28 +118,20 @@ blowfish_decrypt(uint8_t crypt_data[], int padsize)
 	
 	datasize = padsize;
 
-	/* CHUNK-IFY! */
 	for (i = 0; i < datasize; i += 8) {
-		/* copied a 8B chunk into the buffer variable */
 		chunk = 0x0000000000000000;
 		memmove(&chunk, crypt_data + i, sizeof(chunk));
 
-
-		/* split into two 4B parts */
 		left = right = 0x00000000;
 		left   = (uint32_t)(chunk >> 32);
 		right  = (uint32_t)(chunk);
 
 		_decrypt(&left, &right);
 
-		/* merge into single 8B chunk */
 		chunk = 0x0000000000000000;
 		chunk |= left; chunk <<= 32;
 		chunk |= right;
 		
-		/* append this chunk into the final answer */
-		/* since decrypted is a multiple of 8, we don't have to worry
-		 * about the off by N bits error */
 		memmove(decrypted + i, &chunk, sizeof(chunk));
 	}
 	return decrypted;
