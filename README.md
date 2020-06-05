@@ -18,3 +18,6 @@ to compile this code, preferably GCC version 4.9+
 Inside `main.c`, there are two macro definitions, namely `#define PLAINTEXT` and `#define KEY`. 
 Edit these values with your own custom plaintext and key values. Keep in mind, keysize should not 
 be greater than 56 characters (preferable less than 55).
+
+# RESOURCES USED
+1. https://morf.lv/introduction-to-data-encryption (basic feistel cipher and then Blowfish using Qt and C++)
